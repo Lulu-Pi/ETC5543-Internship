@@ -1,0 +1,18 @@
+@ARTICLE{Faber2007,
+  title    = "A Quantitative Approach to Tactical Asset Allocation",
+  author   = "Faber, M. T.",
+  journal  = "Wealth Management",
+  month    =  March,
+  year     =  2007,
+  language = "en"
+}
+
+@ARTICLE{Keller2016,
+  title    = "Protective Asset Allocation (PAA): A Simple Momentum-Based Alternative for Term Deposits",
+  author   = "Keller, Wouter J. and Keuning, Jan Willem",
+  journal  = "SSRN",
+  month    =  April,
+  year     =  2016,
+  language = "en",
+  url      = "https://ssrn.com/abstract=2759734 or http://dx.doi.org/10.2139/ssrn.2759734"
+}

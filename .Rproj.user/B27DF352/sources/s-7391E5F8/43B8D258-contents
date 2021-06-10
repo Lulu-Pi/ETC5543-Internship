@@ -1,0 +1,589 @@
+---
+title: "Unique Alleged Offenders in Victoria"
+subtitle: "<br/>&#x1F60E; Data explorers"  
+author: 
+  - "Lulu Pi"
+  - "Ying Zou"
+  - "Linling Bai"
+date: 'ETC5510: Week 12'
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    seal: false
+    css: xaringan-themer.css
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+library(rmarkdown)
+library(tidyverse)
+library(readxl)
+library(dplyr)
+library(viridis)
+library(ggplot2)
+library(plotly)
+library(ggResidpanel)
+library(gridExtra)
+library(tsibble)
+library(lubridate)
+library(hrbrthemes)
+library(stringr)
+library(RColorBrewer)
+library(xaringanthemer)
+offence_type <- read_excel("cleaned_data.xlsx", sheet = 2)
+offence_subdivision <- read_excel("cleaned_data.xlsx", sheet = 1)
+sexsum <- read_excel("cleaned_data.xlsx", sheet = 4)
+minors<- read_excel("cleaned_data.xlsx", sheet = 3)
+minors_incidents <- read_excel("cleaned_data.xlsx", sheet = 6)
+
+style_duo_accent(
+  primary_color = "#1381B0",
+  inverse_background_color = "#FFCCCC",
+  secondary_color = "#FF961C",
+  inverse_header_color = "#FFFFFF"
+)
+```
+class: inverse, center, middle
+# Unique Alleged Offenders in Victoria
+## <br/>&#x1F60E; Data explorers
+
+### Lulu Pi
+### Ying Zou
+### Linling Bai
+
+---
+class: inverse, middle
+# Analysis of Offence types
+
+relationship between the **crime cases** within each **offence type** from 2011 to 2020 with: 
+
+- #### Gender
+- #### Age Groups
+- #### Subdivisions
+???
+In this section, I will explore the relationship between **crime cases** within each **offence type** with **gender**, **age groups** and **subdivision**. 
+---
+## Offence types related to gender
+```{r echo=FALSE}
+offence_type_sex <- offence_type %>%
+  select(-`Age Group`) %>%
+  mutate(Year = as.character(Year)) %>%
+  group_by(Year,
+           Sex,
+           `Offence Division`) %>%
+  summarise(Cases = sum(Cases))
+```
+.pull-left[
+```{r plot-last, fig.show = 'hide', echo=TRUE}
+ggplot(offence_type_sex, aes(x = Year, y = Cases, group = Sex, color = Sex)) +
+  geom_line() +
+  facet_wrap(~`Offence Division`, ncol = 2, scales = "free_y")  + #<<
+  scale_color_viridis(discrete = TRUE) + #<<
+  theme_bw() + #<<
+  ggtitle("Number of cases with each Offence type") + #<<
+  theme(plot.title = element_text(size = 20, #<<
+                                  color = "blue"), #<<
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        axis.text.x = element_text(angle = 90, hjust = 1)) #<<
+```
+]
+.pull-right[
+```{r ref.label = 'plot-last', echo = FALSE}
+```
+]
+
+???
+I used line chart to show crimes related to gender based on `facet wrap` with **6 offence types** and I customize the line chart  that: 
+
+- Change the format shown in `facet_wrap()` to make the plot clearly
+- Use the `viridis` package to get a nice color palette
+- Customize the theme with the `theme_bw()`
+- Add `ggtitle()` 
+- Customize the color,size and angle of title, axis and legend
+---
+```{r echo=FALSE, fig.height=6.5, fig.width=6.5, dev='svg'}
+ggplot(offence_type_sex, aes(x = Year, y = Cases, group = Sex, color = Sex)) +
+  geom_line() +
+  facet_wrap(~`Offence Division`, ncol = 2, scales = "free_y")  + #<<
+  scale_color_viridis(discrete = TRUE) + #<<
+  theme_bw() + #<<
+  ggtitle("Number of cases with each Offence type") + #<<
+  theme(plot.title = element_text(size = 20, #<<
+                                  color = "blue"), #<<
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        axis.text.x = element_text(angle = 90, hjust = 1)) 
+```
+
+???
+As we can see, number of incidens by Males would be greater than that of Females overall, the details in each offence type will be presented later. 
+---
+## Offence types related to age group
+```{r echo=FALSE}
+offence_type_age <- offence_type %>%
+  select(-Year) %>%
+  group_by(`Age Group`,
+           Sex,
+           `Offence Division`) %>%
+  summarise(Cases = sum(Cases))
+```
+.pull-left[
+```{r age_group, fig.show = 'hide', echo=TRUE}
+ggplot(offence_type_age, aes(x = `Offence Division`, y = Cases, 
+                             fill = Sex)) + #<<
+  geom_bar(stat = "identity") + #<<
+  facet_wrap(~`Age Group`,  scales = "free_y") +
+  scale_x_discrete(labels = c("A", "B", "C", "D", "E", "F")) +
+  scale_fill_brewer(palette = "Set2") + #<<
+  theme_bw() +
+  ggtitle("Number of each type of offences in different age group") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "blue"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.position = "bottom", #<<
+        plot.title.position = "plot")
+```
+]
+.pull-right[
+```{r ref.label = 'age_group', echo = FALSE}
+```
+]
+
+???
+I used barplot based on `facet wrap` with **age groups** to show cases number, and I customize the graph same as before, but also: 
+
+- stack them with `fill = sex` to see the gender in each age group
+- Use RColorBrewer to control bar colors
+- Move the legend to the bottom 
+---
+```{r echo=FALSE, fig.height=6.5, fig.width=6.5, dev='svg'}
+ggplot(offence_type_age, aes(x = `Offence Division`, y = Cases, fill = Sex)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~`Age Group`,  scales = "free_y") +
+  scale_x_discrete(labels = c("A", "B", "C", "D", "E", "F")) +
+  scale_fill_brewer(palette = "Set2") + 
+  theme_bw() +
+  ggtitle("Number of each type of offences in different age group") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "blue"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        legend.position = "bottom",
+        plot.title.position = "plot")
+```
+
+???
+Most of cases contribute to type A and type B related to minors under 18, which means there has a large number of minors involved with *Arson, Theft or Deception* that needs to be paid attention. Crimes of adults mostly contribute to Type A, while type D and B also occupy large number of cases, especially for *young and strong people between 18 to 45*. 
+---
+## Offence types with details in subdivision
+.pull-left[
+```{r subA, fig.show = 'hide', echo=TRUE}
+offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Crimes")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 24000, label = "A20", label.size = 0.35, color = "black", fill="#69b3a2") + #<<
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type A Crimes against the person") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+```
+]
+.pull-right[
+```{r ref.label = 'subA', echo = FALSE}
+```
+]
+
+???
+I used line chart again to the trends related to subdivision, and I customize the line chart same as before, except: 
+
+- Add labels in order to specify the subdivision for users
+
+---
+```{r echo=FALSE, fig.height=6.5, fig.width=6.5, dev='svg'}
+p1 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Crimes")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 24000, label = "A20", 
+    label.size = 0.35,
+    color = "black",
+    fill="#69b3a2") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type A Crimes against the person") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+p2 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Property")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 9000, label = "B40", label.size = 0.35, color = "black", fill="#69b3a2") + 
+  geom_label(x = "2019", y = 5500, label = "B20", label.size = 0.35, color = "dark blue") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type B Property and deception offences") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+grid.arrange(p1, p2)
+```
+
+???
+The main crimes happen within type A are always **A20**, which is even greater than the sum of other divisions. 
+Although cases of Subdivision **B40 Theft** has decreased from 2014, it still happened the most.
+---
+```{r echo=FALSE, fig.height=6.5, fig.width=6.5, dev='svg'}
+p3 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Drug")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 5000, label = "C30", label.size = 0.35, color = "black", fill="#69b3a2") + 
+  geom_label(x = "2019", y = 3000, label = "C10", label.size = 0.35, color = "dark red") +
+  geom_label(x = "2019", y = 1000, label = "C20", label.size = 0.35, color = "dark green") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type C Drug offences") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+p4 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Public")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2018", y = 7000, label = "D20", label.size = 0.35, color = "black", fill="#69b3a2") + 
+  geom_label(x = "2015", y = 3000, label = "D10", label.size = 0.35, color = "dark red") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type D Public order and security offences") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+grid.arrange(p3, p4)
+```
+
+???
+Drug offences mainly happened on drug users **C30**, following by drug dealers **C10**, and drug producers **C20**. 
+In terms of type D, it is noticeable that **D20** has decreased by nearly 2.5 times since 2011, even less than cases of **D10** which is always the second large subdivision in type D. 
+---
+```{r echo=FALSE, fig.height=6.5, fig.width=6.5, dev='svg'}
+p5 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Justice")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 6200, label = "E20", label.size = 0.35, color = "dark blue") + 
+  geom_label(x = "2019", y = 1800, label = "E10", label.size = 0.35, color = "dark red") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type E Justice procedures offences") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+p6 <- offence_subdivision %>%
+  filter(str_detect(`Offence Division`, "Other")) %>%
+  mutate(Year = as.character(Year)) %>%
+  select(- `Offence Division`) %>%
+  ggplot(aes(x = Year, y = Cases, group = `Offence Subdivision`, color =  `Offence Subdivision`)) +
+  geom_line() +
+  theme_bw() +
+  geom_label(x = "2019", y = 2500, label = "F90", label.size = 0.35, color = "black", fill="#69b3a2") +
+  scale_x_discrete(labels = c("2011", "", "", "2014", "", "", "2017", "", "", "2020")) +
+  ggtitle("Type F Other offences") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.title = element_text(size = 13),
+        plot.title.position = "plot")
+
+grid.arrange(p5, p6)
+```
+
+???
+Only 2 subdivisions classified in type E, and cases of **E20** constantly increased since 2011. 
+However, other offences **F90** suddenly increased in 2019, due to the data limitation in this research, the specific cases would not be shown today. Now it's turn to Ying Zou.
+---
+class: inverse, middle
+# Analysis of birth country
+
+- #### Gender group
+- #### Age group
+---
+## Gender group
+.pull-left[
+```{r plot1, echo=FALSE}
+sex_crime <- sexsum %>%
+  filter(`Country of Birth`!='All other countries',`Country of Birth`!='Australia',`Country of Birth`!='Unspecified')%>%
+  mutate(`Country of Birth` = fct_reorder(`Country of Birth`,`sum`)) %>%
+  ggplot(aes(x=`Country of Birth`, y=`sum`,fill=`Demographic Group`)) +
+  geom_bar(position='dodge',stat="identity", alpha=.6, width=.4) +
+  coord_flip() +
+  xlab("") +
+  theme_bw()+
+ggtitle(label = "The number of crimes in major countries from 2011 to 2020")
+sex_crime
+```
+]
+.pull-right[
+
+- This picture depicts the total number of the crimes committed by non-Australia borned criminals in the past decade.We can see that the criminals are mainly men, and the number of crimes committed by men far exceeds the number of crimes committed by women.
+]
+---
+```{r plot2data, echo=FALSE}
+plot2data <- sexsum%>%
+  filter(`Country of Birth`!='All other countries',`Country of Birth`!='Unspecified')%>%
+  pivot_longer(  cols = `2020`:`2011`,
+                 names_to = 'year',
+                 values_to = "count")%>%
+  select(-`sum`)
+
+plot22 <- plot2data%>%
+  ggplot( aes(x=year, y=count, color=`Demographic Group`, group=`Demographic Group`)) +
+    geom_area() +
+    scale_fill_viridis(discrete= TRUE) +
+    theme(legend.position="none") +
+    ggtitle("Changes in the number of crimes in different countries of birth") +
+    theme_ipsum() +
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0, "lines"),
+      strip.text.x = element_text(size = 8),
+      plot.title = element_text(size=13),
+      axis.text.x=element_blank()
+    ) +
+    facet_wrap(~`Country of Birth`, scale="free_y")
+plot22
+```
+
+- This graph shows the trend of the number of crimes in these countries. The number of crimes of those born in Afghanistan has increased the fastest, and the crimes growth of those born in Australia and Vietnam is almost the same.
+---
+```{r, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+# Prepare a color palette. Here with R color brewer:
+myPalette <- brewer.pal(10, "Set3") 
+sum1 <- c(68998,42525,107670,96332,81970,72793,62838,46517,27886,32580)
+
+# You can change the border of each area with the classical parameters:
+pie(sum1, labels = c("10-17 years","18-19 years","	20-24 years","25-29 years","	30-34 years","35-39 years","40-44 years","45-49 years","50-54 years","55 years and over"), border="white", col=myPalette )+
+  title("Proportion of age of crime in countries")
+```
+
+- This pie chart shows the age ratio of criminals. We can see that the number of crimes in the 20-24 age group is the most, and the number of crimes over 30 is decreasing.
+---
+class: inverse, middle
+# Analysis of minors crime
+
+- #### Changing trend of single crime and multiple crime
+- #### Number of crimes committed by different genders at different ages in different years
+---
+## Changing trend of single crime and multiple crime
+```{r echo=FALSE, fig.height=5, fig.width=5, dev='svg'}
+minors_long <- minors %>%
+ pivot_longer(cols = c("1 incident","More than 1"),
+ names_to = "situation",
+ values_to = "Cases") %>%
+ filter(Sex == "Males")
+
+ggplot(minors_long,
+ aes(x = `Age Group`,y = Cases, fill = situation)) +
+ geom_col() +
+ theme_bw() +
+            xlab("Age_Group") +
+            ylab("Cases") +
+            ggtitle("in2020")+
+  theme(legend.position="none",
+        axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+---
+### Number of crimes committed by different genders at different ages in in 2011 and 2012
+.pull-left[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2011") %>% 
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+   geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2011")+
+  facet_wrap(~ Year)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2012") %>%
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2012")+
+  facet_wrap(~ Year)
+```
+]
+---
+### Number of crimes committed by different genders at different ages in 2013 and 2014
+.pull-left[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2013") %>%
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2013")+
+  facet_wrap(~ Year)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2014") %>%
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2014")+
+  facet_wrap(~ Year)
+```
+]
+---
+### Number of crimes committed by different genders at different ages in 2015 and 2016
+.pull-left[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2015") %>%
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2015")+
+  facet_wrap(~ Year)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2016") %>%
+ ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2016")+
+  facet_wrap(~ Year)
+```
+]
+---
+### Number of crimes committed by different genders at different ages in 2017 and 2018
+.pull-left[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2017") %>%
+ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2017")+
+  facet_wrap(~ Year)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2018") %>%
+ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2018")+
+  facet_wrap(~ Year)
+```
+]
+---
+### Number of crimes committed by different genders at different ages in 2019 and 2020
+.pull-left[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2019") %>%
+ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2019")+
+  facet_wrap(~ Year)
+```
+]
+.pull-right[
+```{r echo=FALSE}
+minors_incidents %>%
+ filter(Year == "2020") %>%
+ggplot(aes(x=Age, y=Cases,color=Sex)) +
+  geom_point() +
+         geom_line() + 
+            theme_bw() +
+            xlab("Age") +
+            ylab("Cases") +
+            ggtitle("Crimes committed by genders at different ages in 2020")+
+  facet_wrap(~ Year)
+```
+]
+
+- Upward trend
+- Underage male delinquency cases > underage female delinquency cases
+- Anomaly in 2020 for underage female
+---
+class: inverse, middle
+### The purpose of this project is to analyze the crime statistics on the number of criminal incidents in Victoria from 3 aspects:
+
+- #### **Analysis of Offence types**
+- #### **Analysis of birth country**
+- #### **Analysis of minors crime**
+---
+class: inverse, center, middle
+
+# Thanks for Listening!
+
+Slides created via the R package [**xaringan**](https://github.com/yihui/xaringan).

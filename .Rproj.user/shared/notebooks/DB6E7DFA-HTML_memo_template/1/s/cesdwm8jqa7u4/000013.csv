@@ -1,0 +1,8 @@
+"0","Return <- Portfolio %>%"
+"0","  pivot_longer(cols = c(""BEPTF"":""TXRH""),"
+"0","               names_to = ""Asset"","
+"0","               values_to = ""Price"") %>%"
+"0","  group_by(Asset) %>%"
+"0","  tq_transmute(mutate_fun = periodReturn, period = ""monthly"") %>%"
+"0","  spread(Asset, monthly.returns)"
+"0","Return"

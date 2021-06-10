@@ -1,0 +1,358 @@
+---
+title: "Characterising the constituents for the House of Representative members in Victoria"
+subtitle: ETC5512 Assignment 2, Master of Business Analytics
+author: Prepared by Lulu Pi, 27370038, lpi2@student.monash.edu
+date: '`r Sys.Date()`'
+output: 
+  html_document:
+    css: monashreport.css
+    includes:
+      before_body: header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      messages = FALSE, 
+                      warning = FALSE,
+                      cache = TRUE)
+library(tidyverse)
+library(sf)
+library(kableExtra)
+library(stringr)
+library(gridExtra)
+```
+
+# 🔍 Analysis
+
+## Q1
+
+```{r ppl_lived, message=FALSE}
+vic_map <- read_sf(here::here("data/vic-july-2018-esri/E_AUGFN3_region.shp")) 
+geopath1 <- here::here("data/census2016_clda_vic_short.gpkg")
+SA1_citizen<- read_sf(geopath1, layer = "census2016_clda_vic_sa1_short") 
+
+div_lived <- SA1_citizen %>%
+  select(Tot_P_P) %>%
+  rename(Count = Tot_P_P) %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+   filter(Elect_div %in% 
+            c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  select(Elect_div, Count) %>%
+  group_by(Elect_div) %>%
+  summarise(Count = sum(Count)) %>%
+  arrange(-Count)
+
+kable(div_lived, caption = "Number of people lived in each electoral division of interest") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) 
+```
+
+
+## Q2
+
+```{r combined data, message=FALSE}
+geopath <- here::here("data/census2016_spca_vic_short.gpkg")
+SA1_age<- read_sf(geopath, layer = "census2016_spca_vic_sa1_short") 
+sa1_geomap <- SA1_age %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+  select("Age_yr_0_M":"Age_yr_79_P",
+         geom,
+         centroid,
+         Elect_div) %>%
+  filter(Elect_div %in% c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  pivot_longer(cols = c("Age_yr_0_M":"Age_yr_79_P"),
+              names_to = "Age",
+               values_to = "Count") %>%
+  filter(!str_detect(Age, "M") & !str_detect(Age, "F") & !str_detect(Age, "Age_yr_.+_.+_P")) %>%
+  mutate(Age = str_replace_all(Age, "Age_yr_", ""),
+         Age = str_replace_all(Age, "_P", "")) 
+```
+
+```{r age_distribution, fig.height = 12, fig.width = 8, message=FALSE}
+lived_age <- sa1_geomap %>%
+  group_by(Elect_div, Age) %>%
+  summarise(Count = sum(Count)) %>%
+  left_join(div_lived, by = "Elect_div") %>%
+  mutate(Percentage = Count.x/Count.y) %>%
+  select(- Count.y) %>%
+  rename(Count = Count.x)
+
+ggplot(lived_age, aes(x = as.numeric(Age), y = Percentage)) +
+  geom_bar(stat = "identity") +
+  facet_wrap(~Elect_div, ncol = 1, scales = "free_y") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  xlab("Age (in years)")
+
+```
+
+Observations:
+
+- In Melbourne division, the 20-29 years cohort is the most common age group, and young people between 20-45 accounted for approximately half of the population. Since The Melbourne is the center of Victoria's business, administrative, cultural and recreational activities. Locals love the constant activity in the city and the easy transport to several Melbourne's universities, and young people would prefer to work here. 
+
+- In Goldstein division, the median age was 40 and there is a large proportion of older people. The baysides suburbs like Goldstein might be more attracted for those retired people, which would provide more health and aged care services. 
+
+- In Kooyong division, there is a high proportion of children from 0 to 19 with more than 25%. The council of Kooyong have provided the Children and Young People Strategy which recognized the importance of adressing the needs of children and young people collectively in one strategy. 
+
+
+## Q3
+
+```{r Australian_citizen, message=FALSE}
+Australian_citizen <- SA1_citizen %>%
+  select(Australian_citizen_P) %>%
+  rename(Australian_citizen = Australian_citizen_P) %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+   filter(Elect_div %in% 
+            c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  group_by(Elect_div) %>%
+  summarise(Australian_citizen = sum(Australian_citizen)) %>%
+  st_join(div_lived, join = st_contains, left = TRUE) %>%
+  mutate(Percentage = Australian_citizen/Count) %>%
+  arrange(-Percentage) %>%
+  select(-Count, -geom, -Elect_div.y) %>%
+  rename(Elect_div = Elect_div.x)
+
+kable(Australian_citizen, 
+      caption = "Percentage of Australian citizens for each electoral division of interest") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) 
+
+```
+
+Historically, more people immigrate to, than emigrate from, Australia thereby adding to the growth of the national population. The various waves of migrants from numerous countries over time, have had an important effect on the diversity of Australia's population. Divisions of **Hotham, Macnamara, especially Melbourne** are the popular place for migration, therefore the proportion of Australian citizens would be lower. 
+
+## Q4
+
+```{r citizen_adults, message=FALSE}
+votes <- read_csv(here::here("data/HouseDopByDivisionDownload-24310.csv"), skip = 1) %>%
+  filter(DivisionNm %in% c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  filter(CalculationType == "Preference Count") %>%
+  select(-c(DivisionID, CandidateID, StateAb, CalculationType))
+
+citizen_adults <- votes %>%
+  filter(CountNumber == 0) %>%
+  group_by(DivisionNm) %>%
+  summarise(citizen_adults = sum(CalculationValue)) %>%
+  arrange(-citizen_adults)
+
+kable(citizen_adults, caption = "Number of adult Australian citizens in each electoral division of interest") %>%
+  kable_styling(bootstrap_options = c("striped", "hover")) 
+```
+
+The table above shows an estimate of adult Australian citizens in those electoral divisions of interest. Since Australia has compulsory voting, in which all citizens over the age of 18 are required to vote at elections. I assume that all of the adult citizens voted in the federal election in 2019, therefore the total number of votes in each division presented the number of adult Australian citizens in that division.  
+
+## Q5
+
+```{r ancetry, message=FALSE}
+SA1_ancestry<- read_sf(geopath1, layer = "census2016_clda_vic_sa1_short") %>%
+  select("Aust_Tot_Resp":"Other_Tot_Resp") %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+   filter(Elect_div %in% 
+            c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  pivot_longer(cols = c("Aust_Tot_Resp":"Other_Tot_Resp"),
+              names_to = "Ancetry",
+               values_to = "Count") %>%
+  filter(str_detect(Ancetry, "Tot_Resp")) %>%
+  mutate(Ancetry = str_replace_all(Ancetry, "_Tot_Resp", "")) %>%
+  group_by(Elect_div, Ancetry) %>%
+  summarise(Count = sum(Count)) %>%
+  pivot_wider(id_cols = Ancetry,  
+              names_from = Elect_div,  
+              values_from = Count)
+```
+
+```{r ancentry_plot,fig.height = 12, fig.width = 8, message=FALSE}
+p1<-SA1_ancestry %>%
+    arrange(-Chisholm) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Chisholm), y = Chisholm)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Chisholm")
+p2<-SA1_ancestry %>%
+    arrange(-Goldstein) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Goldstein), y = Goldstein)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Goldstein")
+p3<-SA1_ancestry %>%
+    arrange(-Higgins) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Higgins), y = Higgins)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Higgins")
+p4<-SA1_ancestry %>%
+    arrange(-Hotham) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Hotham), y = Hotham)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Hotham")
+p5<-SA1_ancestry %>%
+    arrange(-Kooyong) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Kooyong), y = Kooyong)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Kooyong")
+p6 <-SA1_ancestry %>%
+    arrange(-Macnamara) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Macnamara), y = Macnamara)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Macnamara")
+p7<-SA1_ancestry %>%
+    arrange(-Melbourne) %>%
+    head(10) %>%
+    ggplot(aes(x = reorder(Ancetry, -Melbourne), y = Melbourne)) +
+    geom_bar(stat="identity") +
+    xlab("") +
+    ylab("") +
+  ggtitle("Melbourne")
+grid.arrange(p1,p2,p3,p4,p5,p6,p7,
+             ncol = 1) 
+```
+
+For all electoral divisions of interest, the highest proportion of ancestry are no Australian, instead, **Chinese** account for the highest proportion of ancestry in **Chisholm** and **Hotham**, **English** contributed to the highest proportion of ancestry in remaining divisions. Moreover,  the top 10 reported ancestry are nearly the same among those electoral division of interest. 
+
+## Q6
+
+```{r religion, message=FALSE}
+geopath2 <- here::here("data/census2016_cldh_vic_short.gpkg")
+SA1_religion<- read_sf(geopath2, layer = "census2016_cldh_vic_sa1_short") %>%
+  select(Buddhism_P, Christianity_Tot_P, Hinduism_P, Islam_P, Judaism_P, Other_Religions_Tot_P, SB_OSB_NRA_Tot_P, Religious_affiliation_ns_P) %>%
+  rename(Christianity_P = Christianity_Tot_P,
+         Other_Religions_P = Other_Religions_Tot_P,
+         No_Religions_P = SB_OSB_NRA_Tot_P,
+         Not_stated_P = Religious_affiliation_ns_P) %>%
+  pivot_longer(cols = c("Buddhism_P":"Not_stated_P"),
+               names_to = "Religions",
+               values_to = "Count") %>%
+  mutate(Religions = str_replace_all(Religions, "_P", "")) 
+
+Religions <- SA1_religion %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+   filter(Elect_div %in% c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) %>%
+  group_by(Elect_div, Religions) %>%
+  summarise(Count = sum(Count))
+
+ggplot(Religions, aes(x = Elect_div, y = Count, fill = Religions)) +
+  geom_bar(position="fill", stat="identity") +
+  theme_bw() +
+  xlab("Division") +
+  ylab("Volume") +
+  ggtitle("Distribution of religious background in each electoral division of interest") +
+  theme(plot.title = element_text(size = 12,
+                                  color = "dark blue"),
+        plot.title.position = "plot") +
+  scale_fill_brewer(palette = "Set2")
+```
+
+The bar plot shows the distribution of religions in those electoral division of interest. It is obvious that Religions of **Christianity** would account for major proportion of people who do have a religion in all division, since there are approximately half of people that do not have any religions, they might rely on secular beliefs and other spiritual beliefs. For divisions **Chisholm, Kooyong and Melbourne**, there are very few of people with **Judaism** Religion. 
+
+## Q7
+
+```{r qualification, message=FALSE }
+geopath3 <- here::here("data/census2016_eqa_vic_short.gpkg")
+SA1_qualification<- read_sf(geopath3, layer = "census2016_eqa_vic_sa1_short") %>%
+  select("P_PGrad_Deg_Total":"P_Lev_Edu_NS_Total") %>%
+  rename(P_Inadequately_des_Total = P_Lev_Edu_IDes_Total,
+         P_Not_stated_Total = P_Lev_Edu_NS_Total) %>%
+  mutate(centroid = map(geom, st_centroid),
+         centroid = st_as_sfc(centroid, crs = st_crs(vic_map)),
+         which = as.integer(st_intersects(centroid, vic_map)),
+         Elect_div = ifelse(is.na(which),
+                            "None",
+                            vic_map$Elect_div[which])) %>%
+   filter(Elect_div %in% c("Melbourne", "Kooyong", "Macnamara", "Chisholm", "Higgins", "Goldstein", "Hotham")) 
+  
+highest_qualfca <- SA1_qualification %>%
+  pivot_longer(cols = c("P_PGrad_Deg_Total":"P_Not_stated_Total"),
+               names_to = "Highest_Qualification",
+               values_to = "Count") %>%
+  filter(str_detect(Highest_Qualification, "_Total") & 
+           !str_detect(Highest_Qualification, "Lev_Tot")) %>%
+  mutate(Highest_Qualification = str_replace_all(Highest_Qualification, "P_", ""),
+         Highest_Qualification = str_replace_all(Highest_Qualification, "_Total", "")) %>%
+  group_by(Elect_div, Highest_Qualification) %>%
+  summarise(Count = sum(Count))
+```
+
+```{r plot_qualification, message=FALSE}
+ggplot(highest_qualfca, aes(x = Elect_div, y = Count, fill = Highest_Qualification)) +
+  geom_bar(position="fill", stat="identity") +
+  theme_dark() +
+  xlab("Division") +
+  ylab("Volume") +
+  ggtitle("Distribution of the highest qualification in each electoral division of interest") +
+  theme(plot.title = element_text(size = 12,
+                                  color = "dark blue"),
+        plot.title.position = "plot") +
+  scale_fill_brewer(palette = "Set3")
+
+```
+
+Divisions such as **Melbourne, Kooyong and Higgins** have a large proportion with people completed **Postgraduate Degree Level** would also have a large proportion of **Bachelor Degree Level** compared to other divisions, however, the proportion of people completed **Certificate III & IV Level(c)** and **Advanced Diploma and Diploma Level** would be lower than others. At the same time, division like **Hotham** with lower proportion of people completed **Postgraduate Degree** compared to other divisions would also have lower proportion of people completed **Bachelor Degree Level** of qualification, but more **Certificate III & IV Level(c)** and **Advanced Diploma and Diploma Level** of qualification. 
+
+## Q8
+Data file names that has been used: 
+
+- victoria map data under file "data/vic-july-2018-esri/E_AUGFN3_region.shp"
+- Table "G01 Selected Person Characteristics by Sex" contained in "census2016_clda_vic_sa1_short" under file "data/census2016_clda_vic_short.gpkg"
+- Table "G04 Age by Sex" contained in "census2016_spca_vic_sa1_short" under file "data/census2016_spca_vic_short.gpkg"
+- file "data/HouseDopByDivisionDownload-24310.csv"
+- Table "G08 Ancestry by Country of Birth of Parents contained" in "census2016_clda_vic_sa1_short" under file "data/census2016_clda_vic_short.gpkg"
+- Table "G14 Religious Affiliation by Sex" contained in "census2016_cldh_vic_sa1_short" under file "data/census2016_cldh_vic_short.gpkg"
+- Table "G46 Non-School Qualification: Level of Education by Age by Sex" contained in "census2016_eqa_vic_sa1_short" under file "data/census2016_eqa_vic_short.gpkg"
+
+## Resources
+
+- Victoria GIS (Geographic Information System) data from: https://www.aec.gov.au/electorates/gis/licence.htm 
+Note: the federal electoral boundary is provided by Australian Electoral Commission
+© Commonwealth of Australia (Australian Electoral Commission) 2021
+
+- The distribution of preferences by candidate by division for the 2019 Australian Federal Election from: https://results.aec.gov.au 
+© Commonwealth of Australia (Australian Electoral Commission) 2021
+
+- GeoPackages for Australian Bureau of Statistics 2016 Census data from: https://datapacks.censusdata.abs.gov.au/geopackages/
+Australian Bureau of Statistics (2016) 'Table G01 Selected Person Characteristics by Sex', accessed 14 May 2021.
+
+Australian Bureau of Statistics (2016) 'Table G04 Age by Sex', accessed 14 May 2021.
+
+Australian Bureau of Statistics (2016) 'Table G08 Ancestry by Country of Birth of Parents contained', accessed 14 May 2021.
+
+Australian Bureau of Statistics (2016) 'Table G14 Religious Affiliation by Sex', accessed 14 May 2021.
+
+Australian Bureau of Statistics (2016) 'Table G46 Non-School Qualification: Level of Education by Age by Sex', accessed 14 May 2021.
+

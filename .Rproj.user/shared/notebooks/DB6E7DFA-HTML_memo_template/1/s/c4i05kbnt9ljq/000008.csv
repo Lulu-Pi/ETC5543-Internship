@@ -1,0 +1,5 @@
+"0","weights_t4 <- c(0.0625, 0.0625, 0.125, 0.125, 0.0625, 0.0625, 0.0625, 0.125,0.0625, 0.0625, 0.0625, 0.125)"
+"0","Asset <- c(""BEPTF"", ""DXCM"", ""FB"",""FIVN"",""FSLR"",""FTV"", ""NFLX"", ""OSTK"",""RUN"",""SONY"",""SWKS"",""TXRH"")"
+"0","weights_t4_check <- tibble(weights_t4, Asset)"
+"0","kable(weights_t4_check, caption = ""Equal Weight (EW) for Top4 scenario"") %>%"
+"0","  kable_styling(bootstrap_options = c(""striped"", ""hover"")) "

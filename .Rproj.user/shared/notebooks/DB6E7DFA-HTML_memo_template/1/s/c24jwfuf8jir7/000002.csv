@@ -1,0 +1,3 @@
+"0","weights_t5 <- c(0.5/7, 0.5/7, 0.1, 0.1, 0.5/7, 0.5/7, 0.5/7, 0.1,0.5/7, 0.5/7, 0.1, 0.1)"
+"0","weights_t5_check <- tibble(weights_t5, Asset)"
+"0","weights_t5_check"

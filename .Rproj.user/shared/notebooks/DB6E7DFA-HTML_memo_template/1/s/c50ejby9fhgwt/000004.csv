@@ -1,0 +1,5 @@
+"0","return_line <- merge(rolling_t6,rolling_6040, join='left')"
+"0","colnames(return_line) <- c('PAA2','60/40')"
+"0","charts.TimeSeries(return_line, date.format.in = ""%Y-%m"","
+"0","                    legend.loc = ""topleft"","
+"0","                  main = ""Fig.1 Monthly return"")"

@@ -1,0 +1,6 @@
+"0","return_t6 <- Return.portfolio(xts_return, weights = weights_t6)"
+"0","mean(return_t6$portfolio.returns)"
+"1","[1]"
+"1"," 0.0722084"
+"1","
+"

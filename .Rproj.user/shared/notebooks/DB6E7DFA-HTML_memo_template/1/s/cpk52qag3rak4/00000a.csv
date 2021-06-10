@@ -1,0 +1,6 @@
+"0","protection_factor <-c(""a=0"", ""a=1"", ""a=2"")"
+"0","n1 <- c(0,3,6)"
+"0","BF <- c(""25.00%"", ""33.33%"", ""50.00%"")"
+"0","BF <- tibble(protection_factor, n1, BF)"
+"0","kable(BF, caption = ""Bond Fraction"") %>%"
+"0","  kable_styling(bootstrap_options = c(""striped"", ""hover"")) "

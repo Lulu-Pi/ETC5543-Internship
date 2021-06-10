@@ -1,0 +1,21 @@
+/* custom.css */
+.left-plot {
+    width: 70%;
+    float: left;
+  }
+  
+.right-text {
+  color: #994c00;
+  width: 30%;
+  float: right;
+}
+
+.left-table {
+    width: 40%;
+    float: left;
+  }
+  
+.right-map {
+  width: 60%;
+  float: right;
+}

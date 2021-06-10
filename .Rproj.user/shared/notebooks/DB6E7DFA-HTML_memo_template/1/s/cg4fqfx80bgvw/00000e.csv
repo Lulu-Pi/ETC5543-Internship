@@ -1,0 +1,6 @@
+"0","rolling_1y <- merge(rolling_return_t6,rolling_return_6040, join='left') %>%"
+"0","  tail(-36)"
+"0","colnames(rolling_1y) <- c('1y PAA2','1y 60/40')"
+"0","charts.TimeSeries(rolling_1y, date.format.in = ""%Y-%m"","
+"0","                    legend.loc = ""center"","
+"0","                  main = ""Fig.3 Rolling-1y return"")"

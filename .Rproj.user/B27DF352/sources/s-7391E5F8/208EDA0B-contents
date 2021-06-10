@@ -1,0 +1,378 @@
+---
+title: "Recommendations for QANTAS: USA airport infrastucture, and a domestic aircraft storage facility"
+subtitle: ETC5512 Assignment 1, Master of Business Analytics
+author: Lulu Pi, 27370038, lpi2@student.monash.edu
+date: 'April 16, 2021'
+bibliography: references.bib
+output: 
+  html_document:
+    citation_package: biblatex
+    css: monashreport.css
+    includes:
+      before_body: header.html
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      cache=TRUE, 
+                      messages=FALSE, 
+                      warning=FALSE,
+                      error = FALSE)
+library(tidyverse)
+library(tidyverse)
+library(ggplot2)
+library(tibble)
+library(tidyr)
+library(readr)
+library(purrr)
+library(dplyr)
+library(stringr)
+library(forcats)
+library(naniar)
+library(broom)
+library(ggmap)
+library(knitr)
+library(lubridate)
+library(rwalkr)
+library(sugrrants)
+library(timeDate)
+library(tsibble)
+library(here)
+library(ggResidpanel)
+library(gridExtra)
+library(ggthemes)
+library(lutz)
+```
+
+## Task 1
+
+In this section, I am going to use the Bureau of Transportation Statistics aviation on time performance database for the flights, to compare the efficiency of using DFW and LAX as the primary airport into and out of the USA. The dataset describes on-time arrival and departure data for non-stop domestic flights, with carriers, origin and destination airport by January 2020. The analysis would be presented by summary statistics for both airports in order to compare their operations.
+
+```{r read_data, include=FALSE}
+airline <- read_csv(here::here("data/airline.csv")) %>%
+  filter(ORIGIN %in% c("DFW","LAX" ))
+```
+
+```{r volume_by_day, message=FALSE}
+volume_day <- airline %>%
+  select(DAY_OF_MONTH, ORIGIN) %>%
+  group_by(DAY_OF_MONTH, ORIGIN) %>%
+  summarise(Volume = n())
+
+ggplot(volume_day, aes(x = as.factor(DAY_OF_MONTH), y = Volume, group = ORIGIN, color = ORIGIN)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("volume at Major Airports: DFW and LAX in January 2020 by day") +
+  xlab("Day of January") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "blue"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        plot.title.position = "plot") +
+  geom_label(x = "11", y = 610, label = "", label.size = 0.5, color = "dark green", fill="transparent") + 
+  geom_label(x = "11", y = 490, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "18", y = 610, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "18", y = 470, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "25", y = 610, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "25", y = 480, label = "", label.size = 0.5, color = "dark green", fill="transparent") 
+
+```
+
+Figure \@ref(fig:volume_by_day) shows the volume of flights connecting to the two airports **Dallas/Fort Worth International Airport** (DFW) and **Los Angeles International Airport** (LAX) in January 2020. The line chart is presented by the day of the month from 1st to 31st. It is obvious that DFW is quite much busier than LAX, since the total number of connecting flights of DFW airport were much higher than that of LAX airport. However, we could find that the overall trends are nearly same between those two airports, as the circle labelled on the graph, the three lowest peaks were distributed on the same day, with a 7-days-cycle. Therefore, some rules of volume of flights could be found based on weekdays as well.
+
+```{r volume_by_weekday, message=FALSE}
+volume_weekday <- airline %>%
+  select(DAY_OF_WEEK, ORIGIN) %>%
+  group_by(DAY_OF_WEEK, ORIGIN) %>%
+  summarise(Volume = n())
+
+ggplot(volume_weekday, aes(x = as.factor(DAY_OF_WEEK), y = Volume, group = ORIGIN, color = ORIGIN)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("volume at Major Airports: DFW and LAX in January 2020 by weekday") +
+  xlab("Day of week") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "blue"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        plot.title.position = "plot") +
+  geom_label(x = "5", y = 4250, label = "", label.size = 0.5, color = "dark green", fill="transparent") + 
+  geom_label(x = "5", y = 3000, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "6", y = 2650, label = "", label.size = 0.5, color = "dark green", fill="transparent") +
+  geom_label(x = "6", y = 2000, label = "", label.size = 0.5, color = "dark green", fill="transparent") 
+
+```
+
+The line chart Figure \@ref(fig:volume_by_weekday) tells the pattern of volume in each airport on weekdays. We could still find the trends of flights number are same between DFW and LAX. The highest peak time to go out distributed on Friday while the lowest peak relied on Saturday. The reason might be that most people would choose to stay rather than going on a long trip on weekends and some other causes related to low-cost airline tickets. 
+
+```{r averae_delay, message=FALSE}
+average_delay <- airline %>%
+  select(DAY_OF_MONTH, ORIGIN, DEP_DELAY, ARR_DELAY)%>%
+  group_by(DAY_OF_MONTH, ORIGIN) %>%
+  summarise(average_dep_delay = mean(DEP_DELAY, na.rm = TRUE),
+            average_arr_delay = mean(ARR_DELAY, na.rm = TRUE)) 
+
+p1 <- ggplot(average_delay, aes(x = DAY_OF_MONTH, y = average_dep_delay, group = ORIGIN, color = ORIGIN)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("Average departure delay in January 2020 by day") +
+  xlab("Day of January") +
+  ylab("Average departure delay") +
+  theme(plot.title = element_text(size = 15,
+                                  color = "blue"),
+        plot.title.position = "plot")
+
+p2 <- ggplot(average_delay, aes(x = DAY_OF_MONTH, y = average_arr_delay, group = ORIGIN, color = ORIGIN)) +
+  geom_line() +
+  theme_bw() +
+  ggtitle("Average arrival delay in January 2020 by day") +
+  xlab("Day of January") +
+  ylab("Average arrival delay") +
+  theme(plot.title = element_text(size = 15,
+                                  color = "blue"),
+        plot.title.position = "plot")
+
+grid.arrange(p1, p2)
+  
+
+```
+
+An important factor that influence the efficiency of the operation by airport would be the delay time. In this part, I use the average values to assess the departure delay and arrival delay as the Figure \@ref(fig:average_delay) above. We could find that the pattern of average departure delay and arrival delay on the same day would be the same at both airports, which means if there was a high average departure delay on that day, the arrival time would delay as well, The two airports experienced the totally adverse trend of average delay minutes in the periods from 2nd to 5th and from 23rd to 30th in January while DFW airport had a significant longer average delays than LAX during 9th to 12nd, 15th to 17th and 26th to 28th, those could be caused by the weather, the operation problem or some unexpected events on that days.
+
+```{r ontime, message=FALSE}
+dep_ontime <- airline %>%
+  select(DAY_OF_MONTH, ORIGIN, DEP_DELAY) %>%
+  filter(DEP_DELAY == "0") %>%
+  group_by(DAY_OF_MONTH, ORIGIN) %>%
+  summarise(dep_ontime = n())
+
+arr_ontime <- airline %>%
+  select(DAY_OF_MONTH, ORIGIN, ARR_DELAY) %>%
+  filter(ARR_DELAY == "0") %>%
+  group_by(DAY_OF_MONTH, ORIGIN) %>%
+  summarise(arr_ontime = n())
+
+ontime <- dep_ontime %>%
+  left_join(arr_ontime,
+            by = c("DAY_OF_MONTH", "ORIGIN")) %>%
+  pivot_longer(cols = c(dep_ontime, arr_ontime),
+               names_to = "Ontime",
+               values_to = "Volume")
+
+ggplot(ontime, aes(x = as.factor(DAY_OF_MONTH), y = Volume, fill = ORIGIN)) +
+  geom_bar(position="fill", stat="identity") +
+  coord_flip() +
+  facet_wrap(~Ontime) +
+  ggtitle("Departure and arrival on time at DFW and LAX in January 2020") +
+  xlab("Day of January") +
+  theme(plot.title = element_text(size = 17,
+                                  color = "blue"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        plot.title.position = "plot")
+```
+
+We can contrast proportion of the volume arrival on time and departure on time by the Figure \@ref(fig:ontime) to see the efficiency between DFW and LAX airports. The proportion of departure on time did not have much variance, while the proportion of arrival on time at DFW airport were greater than that of LAX airport on the most of days in January 2020.
+
+```{r LAX_carrier}
+LAX_carrier <- airline %>%
+  filter(ORIGIN == "LAX") %>%
+  select(OP_CARRIER, DEP_DELAY, ARR_DELAY) %>%
+  mutate(DEP_DELAY_log = log10(DEP_DELAY+30),
+         ARR_DELAY_log = log10(ARR_DELAY+30)) %>%
+  select(- DEP_DELAY, -ARR_DELAY) %>%
+  pivot_longer(cols = c(DEP_DELAY_log, ARR_DELAY_log),
+               names_to = "Delay",
+               values_to = "Delay_minutes_log") %>%
+  mutate(OP_CARRIER = as.factor(OP_CARRIER)) %>%
+  mutate(OP_CARRIER = fct_reorder(OP_CARRIER, Delay_minutes_log, 
+                .fun = "median", na.rm=TRUE))
+
+ggplot(LAX_carrier, aes(x = OP_CARRIER, y = Delay_minutes_log, fill = OP_CARRIER)) +
+  geom_boxplot() +
+  facet_wrap(~Delay) +
+  theme_bw() +
+  ggtitle("Delays for each carrier at LAX") +
+  xlab("Carrier") +
+  ylab("Delay minutes (log)") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.position = "none",
+        plot.title.position = "plot")
+  
+```
+
+```{r DFW_carrier}
+DFW_carrier <- airline %>%
+  filter(ORIGIN == "DFW") %>%
+  select(OP_CARRIER, DEP_DELAY, ARR_DELAY) %>%
+  mutate(DEP_DELAY_log = log10(DEP_DELAY+30),
+         ARR_DELAY_log = log10(ARR_DELAY+30)) %>%
+  select(- DEP_DELAY, -ARR_DELAY) %>%
+  pivot_longer(cols = c(DEP_DELAY_log, ARR_DELAY_log),
+               names_to = "Delay",
+               values_to = "Delay_minutes_log") %>%
+  mutate(OP_CARRIER = as.factor(OP_CARRIER)) %>%
+  mutate(OP_CARRIER = fct_reorder(OP_CARRIER, Delay_minutes_log, 
+                .fun = "median", na.rm=TRUE))
+
+ggplot(DFW_carrier, aes(x = OP_CARRIER, y = Delay_minutes_log, fill = OP_CARRIER)) +
+  geom_boxplot() +
+  facet_wrap(~Delay) +
+  theme_bw() +
+  ggtitle("Delays for each carrier at DFW") +
+  xlab("Carrier") +
+  ylab("Delay minutes (log)") +
+  theme(plot.title = element_text(color = "blue"),
+        legend.position = "none",
+        plot.title.position = "plot")
+  
+```
+
+Figure \@ref(fig:LAX_carrier) and Figure \@ref(fig:DFW_carrier) compare the arrival delay and departure delay for each carrier at the two airport. Since the value of delays have significant skewed distributions, the delay minutes are transformed to log values. There is not much difference in the median delays, and the variation in delays between carriers. For both arrival and departure delay, at LAX airport, AA and WN have the highest median delay, OO has the flight with the longest delay; while at DFW airport, AS and OH have the highest median delay, UA has the flight with the longest delay. Moreover, F9 has the lowest median delay at both airports. 
+
+Overall, this section focuses on analysing the efficiency of operations between LAX and DFW airports, by comparing the findings including: the total volume of connecting flights based on the day of month and weekday in January 2020 in order to find out the volume pattern and make related decisions; the proportion of ontime volume respectively during the month; the average daily delay for departure and arrival; the transforming delay values among all carriers. However, there are still something that insufficient to assess the efficiency, such as the fuel usage, the weather condition and other unexpected events.
+
+## Task 2
+
+In this section, I used data that launched from the **Atlas of Living Australia**, containing occurrence records of species which are critically endangered in Victoria, with the date and location of individual count, to assess the impact on those local species in two locations, Tullamarine and Bendigo. The analysis would base on a range controlled within a 50km radius of the two airports, while the records dating back to Jan 1, 2000. 
+
+```{r include=FALSE}
+records <- read_csv(here::here("data/records-2021-04-15.csv")) %>%
+  select(species,
+         individualCount, 
+         year, 
+         month, 
+         day, 
+         decimalLatitude, 
+         decimalLongitude) %>%
+  filter(!is.na(individualCount),
+         !is.na(year),
+         !is.na(month),
+         !is.na(day),
+         !is.na(decimalLatitude),
+         !is.na(decimalLongitude)) %>%
+  rename(Latitude = decimalLatitude,
+         Longitude = decimalLongitude) %>%
+  filter(year >= "2000") 
+```
+
+```{r tul_map, message=FALSE}
+# tullamarine: -37.6995, 144.8803
+# 50k is approximately 0.4499116 degrees
+
+tul_bbox <- c(144.4304, # min long
+              -38.1494, # min lat
+              145.3302, # max long
+              -37.2496) # max lat
+tul_map <- get_map(location = tul_bbox, source = "osm")
+
+tul_record <- records %>%
+  filter(Longitude>tul_bbox[1], 
+         Longitude<tul_bbox[3], 
+         Latitude>tul_bbox[2],
+         Latitude<tul_bbox[4])
+  
+ggmap(tul_map) + 
+  geom_point(data=tul_record, 
+             mapping = aes(Longitude, Latitude, color = species),
+             alpha = 0.9, 
+             size = 2) +
+  ggtitle("Species at Tullamarine") +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "dark grey"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        plot.title.position = "plot")
+```
+
+
+
+```{r ben_map, message=FALSE}
+# bendigo: -36.7570, 144.2794
+# 50k is approximately 0.4499116 degrees
+
+ben_bbox <- c(143.8295, # min long
+              -37.2069, # min lat
+              144.7293, # max long
+              -36.3071) # max lat
+ben_map <- get_map(location = ben_bbox, source = "osm")
+
+ben_record <- records %>%
+  filter(Longitude>ben_bbox[1], 
+         Longitude<ben_bbox[3], 
+         Latitude>ben_bbox[2],
+         Latitude<ben_bbox[4])
+  
+ggmap(ben_map) + 
+  geom_point(data=ben_record, 
+             mapping = aes(Longitude, Latitude, color = species),
+             alpha = 0.9, 
+             size = 2) +
+  ggtitle("Species at Bendigo") +
+  xlab("Longitude") +
+  ylab("Latitude") +
+  theme(plot.title = element_text(size = 20,
+                                  color = "dark grey"),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_text(size = 15),
+        legend.title = element_text(size = 15),
+        plot.title.position = "plot")
+```
+
+The locations of the local endangered species occurrences are plotted on maps above. The Figure \@ref(fig:tul_map) shows that 4 species were living in Tullamarine, the largest number is **Platypus - Ornithorhynchus anatinus**, while there are tiny amount of **Eastern Barred Bandicoot - Perameles gunnii**, **Greater Glider - Petauroides volans** and **Hooded plover - Thinornis cucullatus**. In terms of Bendigo with Figure \@ref(fig:ben_map), the only recorded specie occurrences are **Platypus - Ornithorhynchus anatinus**.
+
+```{r OA, message=FALSE}
+tul_OA <- tul_record %>%
+  select(species, individualCount, year) %>%
+  mutate(individualCount = as.integer(individualCount)) %>%
+  group_by(species, year) %>%
+  summarise(Tullamarine = sum(individualCount)) %>%
+  filter(species == "Ornithorhynchus anatinus")
+
+ben_OA <- ben_record %>%
+  select(species, individualCount, year) %>%
+  mutate(individualCount = as.integer(individualCount)) %>%
+  group_by(species, year) %>%
+  summarise(Bendigo = sum(individualCount))
+
+OA <- tul_OA %>%
+  left_join(ben_OA,
+            by = c("species", "year")) %>%
+  pivot_longer(cols = c(Tullamarine, Bendigo),
+               names_to = "Location",
+               values_to = "Count")
+
+ggplot(OA, aes(x = as.factor(year), y = Count, fill = Location)) +
+  geom_bar(position = "dodge", stat = "identity", width = 0.6)+
+  coord_flip() +
+  theme_bw() +
+  ggtitle("Individual count of Ornithorhynchus anatinus since 2000") +
+  xlab("Year") +
+  ylab("Count") +
+  theme(plot.title = element_text(size = 15, color = "blue"),
+        plot.title.position = "plot") +
+  geom_label(x = "2012", y = 18, label = "Missing value", label.size = 0.5, color = "dark green", fill="transparent")
+  
+```
+
+As we can see, the endangered specie in both locations is **Platypus - Ornithorhynchus anatinus**, therefore, we could compare the occurrences between Tullamarine and Bendigo since 2000 according to the Figure \@ref(fig:OA). There is a missing recorded related to Bendigo in 2012, however, we can still find that the overall count of Tullamarine were greater than Bendigo. the trends were similar on them, decreasing from 2002,2003 and increasing from 2017.
+
+In summary, due to the lower number of endangered species and lower amount of Ornithorhynchus anatinus which is the only left local specie, new plan storage facility might be more suitable foe Bendigo, which would lead to the least impact on those endangered species. 
+
+## Resources
+
+data sources: 
+Bureau of Transportation Statistics aviation on time performance database (https://www.transtats.bts.gov)
+Atlas of Living Australia database (https://biocache.ala.org.au/search#tab_simpleSearch)
+
+R Core Team (2021). R: A language and environment for
+statistical computing. R Foundation for Statistical
+Computing, Vienna, Austria. URL
+https://www.R-project.org/.
+
